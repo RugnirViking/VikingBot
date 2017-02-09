@@ -84,17 +84,23 @@ function patch(old, diff) {
 }
 var chatRoom;
 var generalNames;
+var messageCounter=0;
+var messageTarget = 30;
 socket.on('game_start', function(data) {
 	// Get ready to start playing the game.
 	playerIndex = data.playerIndex;
 	var replay_url = 'http://bot.generals.io/replays/' + encodeURIComponent(data.replay_id);
 	
-	console.log("Import message is: "+chatTools.getMainString());
 	console.log('Game starting! The replay will be available after the game at ' + replay_url);
 	chatRoom = data.chat_room;
 	generalNames = data.usernames;
-	var startingMessage = 'Beep Boop. I pine for the fjords! Enjoy the game.';
+
+	// say a friendly message at the start of the game
+	var startingMessage = chatTools.getStartingString();
 	socket.emit('chat_message',chatRoom,startingMessage);
+
+	//reset the message counter
+	messageCounter=0;
 });
 
 socket.on('game_update', function(data) {
@@ -103,6 +109,18 @@ socket.on('game_update', function(data) {
 	map = patch(map, data.map_diff);
 	generals = data.generals;
 
+	messageCounter++;
+	if (messageCounter>=messageTarget){
+		//reset the message counters
+		messageCounter = 0;
+		var newMaxCounter = Math.floor(Math.random()*30)+25;
+		console.log(newMaxCounter);
+		messageTarget = newMaxCounter;
+
+		//Say a friendly random message
+		var leaveGameLost = chatTools.getRandomString();
+		socket.emit('chat_message',chatRoom,leaveGameLost);
+	}
 	// The first two terms in |map| are the dimensions.
 	var width = map[0];
 	var height = map[1];
@@ -153,7 +171,7 @@ socket.on('game_update', function(data) {
 
 function leaveGameLost() {
 	// Send a friendly message
-	var leaveGameLost = 'Beep Boop. The day is not in my favour. I am defeated! Well played.';
+	var leaveGameLost = chatTools.getLosingString();
 	socket.emit('chat_message',chatRoom,leaveGameLost);
 
 	console.log("Generals involved: "+generalNames);
@@ -162,7 +180,7 @@ function leaveGameLost() {
 
 function leaveGameWon() {
 	// Send a friendly message
-	var leaveGameLost = 'Beep Boop. Praise Odin! We are victorious. Well played.';
+	var leaveGameWon = chatTools.getWinningString();
 	socket.emit('chat_message',chatRoom,leaveGameLost);
 
 	console.log("Generals involved: "+generalNames);
