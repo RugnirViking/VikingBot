@@ -113,7 +113,7 @@ socket.on('game_update', function(data) {
 	if (messageCounter>=messageTarget){
 		//reset the message counters
 		messageCounter = 0;
-		var newMaxCounter = Math.floor(Math.random()*30)+25;
+		var newMaxCounter = Math.floor(Math.random()*50)+50;
 		console.log(newMaxCounter);
 		messageTarget = newMaxCounter;
 
