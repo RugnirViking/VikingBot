@@ -1,7 +1,7 @@
 # VikingBot, a Generals.io bot.
 The goal is to make a bot for generals.io in js.
 
-Soon I will re-write this repro
+Soon I will re-write this repo
 
 From the website:
 
