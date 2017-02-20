@@ -17,15 +17,15 @@ socket.on('connect', function() {
 	 * replacing this line with something that instead supplies the user_id via an environment variable, e.g.
 	 * var user_id = process.env.BOT_USER_ID;
 	 */
-	var user_id = 'my_example_bot_id';
+	var user_id = 'VikingBot';
 	var username = 'VikingBot';
-
+	console.log(username);
 	// Set the username for the bot.
 	socket.emit('set_username', user_id, username);
 
 	// Join a custom game and force start immediately.
 	// Custom games are a great way to test your bot while you develop it because you can play against your bot!
-	var custom_game_id = 'my_private_game';
+	var custom_game_id = 'vikingBotPlayground';
 	socket.emit('join_private', custom_game_id, user_id);
 	socket.emit('set_force_start', custom_game_id, true);
 	console.log('Joined custom game at http://bot.generals.io/games/' + encodeURIComponent(custom_game_id));
@@ -56,7 +56,7 @@ var playerIndex;
 var generals; // The indicies of generals we have vision of.
 var cities = []; // The indicies of cities we have vision of.
 var map = [];
-
+var currentTurnCounter = 0;
 /* Returns a new array created by patching the diff into the old array.
  * The diff formatted with alternating matching and mismatching segments:
  * <Number of matching elements>
@@ -104,6 +104,7 @@ socket.on('game_start', function(data) {
 });
 
 socket.on('game_update', function(data) {
+	currentTurnCounter++;
 	// Patch the city and map diffs into our local variables.
 	cities = patch(cities, data.cities_diff);
 	map = patch(map, data.map_diff);
@@ -114,7 +115,6 @@ socket.on('game_update', function(data) {
 		//reset the message counters
 		messageCounter = 0;
 		var newMaxCounter = Math.floor(Math.random()*50)+50;
-		console.log(newMaxCounter);
 		messageTarget = newMaxCounter;
 
 		//Say a friendly random message
@@ -134,7 +134,206 @@ socket.on('game_update', function(data) {
 	// terrain[0] is the top-left corner of the map.
 	var terrain = map.slice(size + 2, size + 2 + size);
 
-	// Make a random move.
+	var ourGeneral = generals[playerIndex];
+
+	/*
+		VikingBot:
+		Strategy for the bot: 
+		we want to do the following moves in order of importance
+			1 - if we can see a general, attack it
+			2 - if we can't, move onto an enemy player's tile
+			3 - if we can't see enemy players, move onto blank tiles
+			4 - if we can't make any moves like this, move high army tiles to low army tiles. if we can see an enemy tile, move half when using the general tile
+			5 - failing that, make a random move
+			6 - if we are well and truly stuck, do nothing 
+	*/
+	// first of all, can we see a general?
+
+	// can we see an enemy tile?
+	var canSeeEnemy = false;
+	var enemyTiles = [];
+	var friendlyTiles = [];
+	for(let x=0;x<terrain.length;x++){
+		// first check is this their tile?
+		if (terrain[x] != playerIndex && terrain[x] > 0) {
+			canSeeEnemy=true;
+			enemyTiles.push(x);
+			continue;
+		}
+
+		// otherwise is it ours?
+		if (terrain[x] === playerIndex) {
+			friendlyTiles.push(x);
+			continue;
+		}
+	}
+	// can we move onto any of those enemy tiles?
+	for(let i=0;i<enemyTiles.length;i++){
+		var enemyTileIndex = enemyTiles[i];
+
+		var row = Math.floor(enemyTileIndex / width);
+		var col = enemyTileIndex % width;
+		var nextDoorTileIndex = enemyTileIndex;
+
+		// check above tile
+		var aboveTileIndex = enemyTileIndex+width; 
+		if (row > 0){
+			if(terrain[aboveTileIndex] === playerIndex && armies[aboveTileIndex]>1){
+				// we have a move on our hands
+				socket.emit('attack', aboveTileIndex, enemyTileIndex);
+				return;
+			}
+		}
+
+
+		// check below tile
+		var belowTileIndex = enemyTileIndex-width;
+		if(col < width - 1){
+			if(terrain[belowTileIndex] === playerIndex && armies[belowTileIndex]>1){
+				// we have a move on our hands
+				socket.emit('attack', belowTileIndex, enemyTileIndex);
+				return;
+			}
+		}
+
+
+		// check left tile
+		var leftTileIndex = enemyTileIndex-1;
+		if(row > 0){
+			if(terrain[leftTileIndex] === playerIndex && armies[leftTileIndex]>1){
+				// we have a move on our hands
+				socket.emit('attack', leftTileIndex, enemyTileIndex);
+				return;
+			}
+		}
+		// check right tile
+		var rightTileIndex = enemyTileIndex+1;
+		if(col < width - 1){
+			if(terrain[rightTileIndex] === playerIndex && armies[rightTileIndex]>1){
+				// we have a move on our hands
+				socket.emit('attack', rightTileIndex, enemyTileIndex);
+				return;
+			}
+		}
+	}
+
+	// can we move onto a blank tile?
+	for(let x=0;x<terrain.length;x++){
+		// the first check is is this a blank tile
+		if (terrain[x] === TILE_EMPTY) {
+			var blankTileIndex = x;
+
+			var row = Math.floor(blankTileIndex / width);
+			var col = blankTileIndex % width;
+			var nextDoorTileIndex = blankTileIndex;
+
+			// check above tile
+			var aboveTileIndex = blankTileIndex+width; 
+			if (row > 0){
+				if(terrain[aboveTileIndex] === playerIndex && armies[aboveTileIndex]>1){
+					// we have a move on our hands
+					socket.emit('attack', aboveTileIndex, blankTileIndex);
+					return;
+				}
+			}
+
+			// check below tile
+			var belowTileIndex = blankTileIndex-width;
+			if(col < width - 1){
+				if(terrain[belowTileIndex] === playerIndex && armies[belowTileIndex]>1){
+					// we have a move on our hands
+					socket.emit('attack', belowTileIndex, blankTileIndex);
+					return;
+				}
+			}
+
+			// check left tile
+			var leftTileIndex = blankTileIndex-1;
+			if(row > 0){
+				if(terrain[leftTileIndex] === playerIndex && armies[leftTileIndex]>1){
+					// we have a move on our hands
+					socket.emit('attack', leftTileIndex, blankTileIndex);
+					return;
+				}
+			}
+
+			// check right tile
+			var rightTileIndex = blankTileIndex+1;
+			if(col < width - 1){
+				if(terrain[rightTileIndex] === playerIndex && armies[rightTileIndex]>1){
+					// we have a move on our hands
+					socket.emit('attack', rightTileIndex, blankTileIndex);
+					return;
+				}
+			}
+		}
+	}
+
+	//
+	//	4 - if we can't make any moves like this, move high army tiles to low army tiles, dont move onto our general
+	//
+
+	// order friendlyTiles by army size on that tile
+	friendlyTiles.sort(function(b,a){
+		// a is the index of the first tile
+		// b is the index of the second tile
+		return armies[a]-armies[b];
+	});
+
+
+	for(let i=0;i<friendlyTiles.length;i++){
+		var ourTileIndex = friendlyTiles[i];
+		var armyHere = armies[ourTileIndex];
+		var row = Math.floor(blankTileIndex / width);
+		var col = blankTileIndex % width;
+		var nextDoorTileIndex = blankTileIndex;
+		var rand = Math.random();
+
+		// check above tile
+		var aboveTileIndex = ourTileIndex+width; 
+		if (row > 0 && rand < 0.25){
+			if(terrain[aboveTileIndex] === playerIndex && armies[aboveTileIndex]<armyHere && aboveTileIndex!==ourGeneral){
+				// we have a move on our hands
+				socket.emit('attack', ourTileIndex, aboveTileIndex);
+				return;
+			}
+		}
+
+		// check below tile
+		var belowTileIndex = ourTileIndex-width;
+		if(col < width - 1 && rand < 0.5){
+			if(terrain[belowTileIndex] === playerIndex && armies[belowTileIndex]<armyHere && aboveTileIndex!==ourGeneral){
+				// we have a move on our hands
+				socket.emit('attack', ourTileIndex, belowTileIndex);
+				return;
+			}
+		}
+
+		// check left tile
+		var leftTileIndex = ourTileIndex-1;
+		if(row > 0 && rand < 0.75){
+			if(terrain[leftTileIndex] === playerIndex && armies[leftTileIndex]<armyHere && aboveTileIndex!==ourGeneral){
+				// we have a move on our hands
+				socket.emit('attack', ourTileIndex, leftTileIndex);
+				return;
+			}
+		}
+
+		// check right tile
+		var rightTileIndex = ourTileIndex+1;
+		if(col < width - 1){
+			if(terrain[rightTileIndex] === playerIndex && armies[rightTileIndex]<armyHere && aboveTileIndex!==ourGeneral){
+				// we have a move on our hands
+				socket.emit('attack', ourTileIndex, rightTileIndex);
+				return;
+			}
+		}
+	}
+
+	console.log("Failure to find a valid move");
+	//
+	// 5 - failing that, make a random move.
+	//
 	while (true) {
 		// Pick a random tile.
 		var index = Math.floor(Math.random() * size);

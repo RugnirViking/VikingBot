@@ -3,12 +3,6 @@ var randomMessages = [
     "Beep boop",
     "This one will get you for sure!",
     "By Tyr this is a great move",
-    `A worse provision
-    no man can take from table
-    than too much beer-bibbing:
-    for the more he drinks
-    the less control he has
-    of his own mind.`,
     `Never break the peace which good men and true make between thee and others.`,
     `A tale is but half told when only one person tells it.`,
     `No one is a total fool if he can be silent.`,
