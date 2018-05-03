@@ -25,9 +25,6 @@ We want to do the following moves in order of importance
 TODO: Implement strategy #1
 Improve pathing on #4
 
-From the website:
-
-This is an example of a basic Javascript implementation of a bot for [generals.io](http://generals.io). Read the tutorial associated with this bot at [dev.generals.io/api#tutorial](http://dev.generals.io/api#tutorial).
 
 ## Usage
 
